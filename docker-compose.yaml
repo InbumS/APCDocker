@@ -1,0 +1,141 @@
+version: '3'
+services:
+  mongodb:
+    image: mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+  kafka1:
+    image: confluentinc/cp-kafka:7.2.1
+    container_name: kafka1
+    ports:
+      - "9092:9092"
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: EXTERNAL:PLAINTEXT,INTERNAL:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: EXTERNAL://kafka1:9092,INTERNAL://kafka1:9091
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+
+  kafka2:
+    image: confluentinc/cp-kafka:7.2.1
+    container_name: kafka2
+    ports:
+      - "9093:9093"
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 2
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: EXTERNAL:PLAINTEXT,INTERNAL:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: EXTERNAL://kafka2:9093,INTERNAL://kafka2:9091
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+
+  kafka3:
+    image: confluentinc/cp-kafka:7.2.1
+    container_name: kafka3
+    ports:
+      - "9094:9094"
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 3
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: EXTERNAL:PLAINTEXT,INTERNAL:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: EXTERNAL://kafka3:9094,INTERNAL://kafka3:9091
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.2.1
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+
+  apcauth:
+    image: good9804/apcauth
+    environment:
+      MONGO_URI: mongodb://mongodb:27017/apc
+    ports:
+      - "3000:3000"
+    depends_on:
+      - mongodb
+
+  apcdashboard:
+    image: sib0817/apcdashboard
+    environment:
+      BROKER_URI: kafka1:9092
+      MONGO_URI: mongodb://mongodb:27017/apc
+    ports:
+      - "3001:3001"
+    depends_on:
+      - kafka1
+      - kafka2
+      - kafka3
+      - mongodb
+
+  apcproduct:
+    image: good9804/apcproduct
+    environment:
+      MONGO_URI: mongodb://mongodb:27017/apc
+    ports:
+      - "3002:3002"
+    depends_on:
+      - mongodb
+
+  apcorder:
+    image: good9804/apcorder
+    environment:
+      MONGO_URI: mongodb://mongodb:27017/apc
+    ports:
+      - "3003:3003"
+    depends_on:
+      - mongodb
+
+  apcwebgl:
+    image: good9804/apcwebgl
+    ports:
+      - "3005:3005"
+    depends_on:
+      - mongodb
+
+  apcwebgl2:
+    image: good9804/apcwebgl2
+    ports:
+      - "3006:3006"
+    depends_on:
+      - mongodb
+
+  apcreview:
+    image: good9804/apcreview
+    ports:
+      - "4001:4001"
+    depends_on:
+      - mongodb
+
+  nginx:
+    image: nginx
+    extra_hosts:
+      - "host.docker,internal:host-gateway"
+    ports:
+      - "80:80"
+    volumes:
+      - ./conf/nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - apcauth
+      - apcdashboard
+      - apcproduct
+      - apcorder
+      - kafka1
+      - kafka2
+      - kafka3
+      - mongodb
+      - apcwebgl
+      - apcwebgl2
+      - apcreview
+
+volumes:
+  mongodb_data:
